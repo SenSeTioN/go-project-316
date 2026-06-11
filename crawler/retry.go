@@ -15,6 +15,7 @@ const retryBaseDelay = 100 * time.Millisecond
 // попыток возвращается результат последней из них. Отмена контекста немедленно
 // прекращает дальнейшие попытки.
 func doRequest(ctx context.Context, opts Options, lim *limiter, url string) (*http.Response, error) {
+	dbg(url, "REQ %s", url)
 	attempts := max(opts.Retries+1, 1)
 
 	var resp *http.Response

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,6 +67,13 @@ type BrokenLink struct {
 // сбои отдельных страниц ошибкой Analyze не считаются: они попадают в отчёт со
 // status="error". Ошибка возвращается только при отсутствии клиента или сбое
 // сериализации.
+// dbg — временный отладочный вывод, отфильтрованный по домену example.com.
+func dbg(tag, format string, args ...any) {
+	if strings.Contains(tag, "example.com") {
+		_, _ = fmt.Fprintf(os.Stderr, "DBG "+format+"\n", args...)
+	}
+}
+
 func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 	if opts.HTTPClient == nil {
 		return nil, errors.New("crawler: HTTPClient must be provided")
@@ -96,6 +104,7 @@ type levelResult struct {
 // Страницы одного уровня загружаются параллельно (до opts.Concurrency воркеров),
 // при этом порядок отчёта остаётся детерминированным.
 func crawl(ctx context.Context, opts Options) []Page {
+	dbg(opts.URL, "CRAWL url=%s depth=%d", opts.URL, opts.Depth)
 	lim := newLimiter(rateInterval(opts))
 	cache := newResourceCache()
 
@@ -185,6 +194,7 @@ func fetchLevel(ctx context.Context, opts Options, lim *limiter, cache *resource
 // ассеты. Вторым значением возвращает найденные на странице ссылки для дальнейшего
 // обхода. При сетевой ошибке или статусе >= 400 разбор HTML не выполняется.
 func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache, pageURL string, depth int) (Page, []string) {
+	dbg(pageURL, "PAGE fetch=%s depth=%d", pageURL, depth)
 	page := Page{
 		URL:          pageURL,
 		Depth:        depth,
@@ -218,6 +228,7 @@ func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache
 		return page, nil
 	}
 	links := extractLinks(root, base)
+	dbg(pageURL, "LINKS page=%s -> %v", pageURL, links)
 	page.BrokenLinks = checkLinks(ctx, opts, lim, cache, links)
 	page.Assets = collectAssets(ctx, opts, lim, cache, extractAssets(root, base))
 
