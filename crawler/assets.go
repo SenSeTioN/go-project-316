@@ -4,17 +4,22 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"golang.org/x/net/html"
 )
+
+// assetRank задаёт порядок ассетов в отчёте: сначала изображения, затем скрипты,
+// затем стили.
+var assetRank = map[string]int{"image": 0, "script": 1, "style": 2}
 
 type Asset struct {
 	URL        string `json:"url"`
 	Type       string `json:"type"`
 	StatusCode int    `json:"status_code"`
 	SizeBytes  int64  `json:"size_bytes"`
-	Error      string `json:"error"`
+	Error      string `json:"error,omitempty"`
 }
 
 type assetRef struct {
@@ -58,6 +63,10 @@ func extractAssets(root *html.Node, base *url.URL) []assetRef {
 		}
 	}
 	walk(root)
+
+	sort.SliceStable(refs, func(i, j int) bool {
+		return assetRank[refs[i].assetTy] < assetRank[refs[j].assetTy]
+	})
 
 	return refs
 }

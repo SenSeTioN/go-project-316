@@ -44,8 +44,8 @@ type Page struct {
 	Depth        int          `json:"depth"`
 	HTTPStatus   int          `json:"http_status"`
 	Status       string       `json:"status"`
-	Error        string       `json:"error"`
-	SEO          *SEO         `json:"seo"`
+	Error        string       `json:"error,omitempty"`
+	SEO          SEO          `json:"seo"`
 	BrokenLinks  []BrokenLink `json:"broken_links"`
 	Assets       []Asset      `json:"assets"`
 	DiscoveredAt string       `json:"discovered_at"`
@@ -104,9 +104,8 @@ func crawl(ctx context.Context, opts Options) []Page {
 
 	workers := max(opts.Concurrency, 1)
 	visited := map[string]struct{}{}
-	root := normalizeURL(start)
-	visited[root] = struct{}{}
-	frontier := []string{root}
+	visited[dedupKey(start)] = struct{}{}
+	frontier := []string{displayURL(start)}
 	pages := []Page{}
 
 	for depth := 0; len(frontier) > 0; depth++ {
@@ -126,13 +125,15 @@ func crawl(ctx context.Context, opts Options) []Page {
 				continue
 			}
 			for _, link := range res.links {
-				if _, seen := visited[link]; seen {
+				u, err := url.Parse(link)
+				if err != nil || u.Host != start.Host {
 					continue
 				}
-				if u, err := url.Parse(link); err != nil || u.Host != start.Host {
+				key := dedupKey(u)
+				if _, seen := visited[key]; seen {
 					continue
 				}
-				visited[link] = struct{}{}
+				visited[key] = struct{}{}
 				next = append(next, link)
 			}
 		}
@@ -184,8 +185,6 @@ func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache
 		URL:          pageURL,
 		Depth:        depth,
 		DiscoveredAt: time.Now().UTC().Format(time.RFC3339),
-		BrokenLinks:  []BrokenLink{},
-		Assets:       []Asset{},
 	}
 
 	resp, err := doRequest(ctx, opts, lim, pageURL)
@@ -208,8 +207,7 @@ func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache
 		return page, nil
 	}
 
-	seo := extractSEO(root)
-	page.SEO = &seo
+	page.SEO = extractSEO(root)
 
 	base, err := url.Parse(pageURL)
 	if err != nil {

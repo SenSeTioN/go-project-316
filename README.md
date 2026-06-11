@@ -41,7 +41,8 @@ go run ./cmd/hexlet-go-crawler --depth 2 --rps 5 https://example.com
 ## Формат отчёта
 
 В stdout печатается ровно один JSON-документ. Все ключи присутствуют всегда:
-пустые значения допустимы, но ключ не пропадает.
+обходятся только ссылки `<a href>`; ресурсы (`img`/`script`/`link`) попадают в
+`assets`. Поле `error` присутствует только когда непустое (`omitempty`).
 
 ```json
 {
@@ -54,7 +55,6 @@ go run ./cmd/hexlet-go-crawler --depth 2 --rps 5 https://example.com
       "depth": 0,
       "http_status": 200,
       "status": "ok",
-      "error": "",
       "seo": {
         "has_title": true,
         "title": "Example title",
@@ -74,8 +74,7 @@ go run ./cmd/hexlet-go-crawler --depth 2 --rps 5 https://example.com
           "url": "https://example.com/static/logo.png",
           "type": "image",
           "status_code": 200,
-          "size_bytes": 12345,
-          "error": ""
+          "size_bytes": 12345
         }
       ],
       "discovered_at": "2024-06-01T12:34:56Z"
@@ -93,10 +92,10 @@ go run ./cmd/hexlet-go-crawler --depth 2 --rps 5 https://example.com
 | `pages[].depth` | расстояние от стартового URL (`0` — стартовая) |
 | `pages[].http_status` | HTTP-код ответа (`0` при сетевой ошибке) |
 | `pages[].status` | `ok` или `error` |
-| `pages[].error` | текст ошибки страницы (пусто при успехе) |
+| `pages[].error` | текст ошибки страницы (отсутствует при успехе) |
 | `pages[].seo` | SEO-теги: `has_title`, `title`, `has_description`, `description`, `has_h1` |
-| `pages[].broken_links[]` | недоступные ссылки: `url`, `status_code`, `error` |
-| `pages[].assets[]` | ресурсы страницы: `url`, `type` (`image`/`script`/`style`), `status_code`, `size_bytes`, `error` |
+| `pages[].broken_links[]` | недоступные `<a href>`-ссылки: `url`, `status_code`, `error` (`[]` при успехе, `null` у ошибочной страницы) |
+| `pages[].assets[]` | ресурсы страницы (`url`, `type` `image`/`script`/`style`, `status_code`, `size_bytes`, `error` при ошибке); отсортированы по типу |
 | `pages[].discovered_at` | время обработки страницы, ISO8601 (UTC) |
 
 ## Поведение обхода

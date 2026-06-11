@@ -9,10 +9,7 @@ import (
 
 // linkAttrs сопоставляет HTML-тег с атрибутом, в котором лежит ссылка.
 var linkAttrs = map[string]string{
-	"a":      "href",
-	"link":   "href",
-	"script": "src",
-	"img":    "src",
+	"a": "href",
 }
 
 // extractLinks обходит дерево HTML и возвращает уникальные абсолютные
@@ -72,13 +69,20 @@ func resolve(base *url.URL, raw string) (string, bool) {
 		return "", false
 	}
 
-	return normalizeURL(abs), true
+	return displayURL(abs), true
 }
 
-// normalizeURL приводит URL к каноничному виду для дедупликации: убирает
-// фрагмент и подставляет "/" для пустого пути, чтобы http://host и
-// http://host/ считались одной страницей.
-func normalizeURL(u *url.URL) string {
+// displayURL — URL в том виде, в каком он попадает в отчёт: убран только фрагмент,
+// путь не трогаем (http://host остаётся без хвостового "/").
+func displayURL(u *url.URL) string {
+	v := *u
+	v.Fragment = ""
+	return v.String()
+}
+
+// dedupKey — ключ дедупликации страниц: фрагмент убран, пустой путь считается
+// "/", чтобы http://host и http://host/ были одной и той же страницей.
+func dedupKey(u *url.URL) string {
 	v := *u
 	v.Fragment = ""
 	if v.Path == "" {

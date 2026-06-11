@@ -189,9 +189,6 @@ func TestAnalyzeSEOAllTags(t *testing.T) {
 	</html>`)
 
 	seo := analyzePage(t, srv).SEO
-	if seo == nil {
-		t.Fatal("seo block is nil")
-	}
 	if !seo.HasTitle || seo.Title != "Example Test" {
 		t.Errorf("title: has=%v value=%q", seo.HasTitle, seo.Title)
 	}
@@ -207,9 +204,6 @@ func TestAnalyzeSEOMissingTags(t *testing.T) {
 	srv := serveHTML(t, `<html><head></head><body><p>no seo here</p></body></html>`)
 
 	seo := analyzePage(t, srv).SEO
-	if seo == nil {
-		t.Fatal("seo block is nil")
-	}
 	if seo.HasTitle || seo.Title != "" {
 		t.Errorf("title: has=%v value=%q, want false/empty", seo.HasTitle, seo.Title)
 	}
@@ -231,9 +225,6 @@ func TestAnalyzeSEOHTMLEntities(t *testing.T) {
 	</html>`)
 
 	seo := analyzePage(t, srv).SEO
-	if seo == nil {
-		t.Fatal("seo block is nil")
-	}
 	if seo.Title != "Tom & Jerry" {
 		t.Errorf("title = %q, want %q", seo.Title, "Tom & Jerry")
 	}
@@ -802,7 +793,7 @@ func TestReportMatchesReference(t *testing.T) {
 		HasDescription: true, Description: "Example description",
 		HasH1: true,
 	}
-	if page.SEO == nil || *page.SEO != wantSEO {
+	if page.SEO != wantSEO {
 		t.Errorf("seo = %+v, want %+v", page.SEO, wantSEO)
 	}
 
@@ -842,7 +833,7 @@ func assertKeys(t *testing.T, data []byte) {
 	var pages []map[string]json.RawMessage
 	_ = json.Unmarshal(top["pages"], &pages)
 	page := pages[0]
-	for _, k := range []string{"url", "depth", "http_status", "status", "error", "seo", "broken_links", "assets", "discovered_at"} {
+	for _, k := range []string{"url", "depth", "http_status", "status", "seo", "broken_links", "assets", "discovered_at"} {
 		if _, ok := page[k]; !ok {
 			t.Errorf("page key %q missing", k)
 		}
@@ -866,7 +857,7 @@ func assertKeys(t *testing.T, data []byte) {
 
 	var assets []map[string]json.RawMessage
 	_ = json.Unmarshal(page["assets"], &assets)
-	for _, k := range []string{"url", "type", "status_code", "size_bytes", "error"} {
+	for _, k := range []string{"url", "type", "status_code", "size_bytes"} {
 		if _, ok := assets[0][k]; !ok {
 			t.Errorf("asset key %q missing", k)
 		}
