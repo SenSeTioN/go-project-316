@@ -45,7 +45,7 @@ type Page struct {
 	HTTPStatus   int          `json:"http_status"`
 	Status       string       `json:"status"`
 	Error        string       `json:"error"`
-	Seo          *SEO         `json:"seo"`
+	SEO          *SEO         `json:"seo"`
 	BrokenLinks  []BrokenLink `json:"broken_links"`
 	Assets       []Asset      `json:"assets"`
 	DiscoveredAt string       `json:"discovered_at"`
@@ -209,7 +209,7 @@ func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache
 	}
 
 	seo := extractSEO(root)
-	page.Seo = &seo
+	page.SEO = &seo
 
 	base, err := url.Parse(pageURL)
 	if err != nil {

@@ -188,7 +188,7 @@ func TestAnalyzeSEOAllTags(t *testing.T) {
 		<body><h1>Main heading</h1></body>
 	</html>`)
 
-	seo := analyzePage(t, srv).Seo
+	seo := analyzePage(t, srv).SEO
 	if seo == nil {
 		t.Fatal("seo block is nil")
 	}
@@ -206,7 +206,7 @@ func TestAnalyzeSEOAllTags(t *testing.T) {
 func TestAnalyzeSEOMissingTags(t *testing.T) {
 	srv := serveHTML(t, `<html><head></head><body><p>no seo here</p></body></html>`)
 
-	seo := analyzePage(t, srv).Seo
+	seo := analyzePage(t, srv).SEO
 	if seo == nil {
 		t.Fatal("seo block is nil")
 	}
@@ -230,7 +230,7 @@ func TestAnalyzeSEOHTMLEntities(t *testing.T) {
 		<body><h1>x</h1></body>
 	</html>`)
 
-	seo := analyzePage(t, srv).Seo
+	seo := analyzePage(t, srv).SEO
 	if seo == nil {
 		t.Fatal("seo block is nil")
 	}
@@ -802,8 +802,8 @@ func TestReportMatchesReference(t *testing.T) {
 		HasDescription: true, Description: "Example description",
 		HasH1: true,
 	}
-	if page.Seo == nil || *page.Seo != wantSEO {
-		t.Errorf("seo = %+v, want %+v", page.Seo, wantSEO)
+	if page.SEO == nil || *page.SEO != wantSEO {
+		t.Errorf("seo = %+v, want %+v", page.SEO, wantSEO)
 	}
 
 	if len(page.BrokenLinks) != 1 {
