@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sort"
 	"sync"
 	"time"
 
@@ -137,6 +138,7 @@ func crawl(ctx context.Context, opts Options) []Page {
 				next = append(next, link)
 			}
 		}
+		sort.Strings(next)
 		frontier = next
 	}
 
