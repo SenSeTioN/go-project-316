@@ -86,8 +86,10 @@ func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 		Pages:       crawl(ctx, opts),
 	}
 
+	data, err := json.MarshalIndent(report, "", "  ")
+	dbg(opts.URL, "REPORT\n%s", string(data))
 	if opts.IndentJSON {
-		return json.MarshalIndent(report, "", "  ")
+		return data, err
 	}
 	return json.Marshal(report)
 }
