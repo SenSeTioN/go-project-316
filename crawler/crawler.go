@@ -6,12 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -67,13 +64,6 @@ type BrokenLink struct {
 // сбои отдельных страниц ошибкой Analyze не считаются: они попадают в отчёт со
 // status="error". Ошибка возвращается только при отсутствии клиента или сбое
 // сериализации.
-// dbg — временный отладочный вывод, отфильтрованный по домену example.com.
-func dbg(tag, format string, args ...any) {
-	if strings.Contains(tag, "example.com") {
-		_, _ = fmt.Fprintf(os.Stderr, "DBG "+format+"\n", args...)
-	}
-}
-
 func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 	if opts.HTTPClient == nil {
 		return nil, errors.New("crawler: HTTPClient must be provided")
@@ -86,10 +76,8 @@ func Analyze(ctx context.Context, opts Options) ([]byte, error) {
 		Pages:       crawl(ctx, opts),
 	}
 
-	data, err := json.MarshalIndent(report, "", "  ")
-	dbg(opts.URL, "REPORT\n%s", string(data))
 	if opts.IndentJSON {
-		return data, err
+		return json.MarshalIndent(report, "", "  ")
 	}
 	return json.Marshal(report)
 }
@@ -106,7 +94,6 @@ type levelResult struct {
 // Страницы одного уровня загружаются параллельно (до opts.Concurrency воркеров),
 // при этом порядок отчёта остаётся детерминированным.
 func crawl(ctx context.Context, opts Options) []Page {
-	dbg(opts.URL, "CRAWL url=%s depth=%d", opts.URL, opts.Depth)
 	lim := newLimiter(rateInterval(opts))
 	cache := newResourceCache()
 
@@ -196,14 +183,13 @@ func fetchLevel(ctx context.Context, opts Options, lim *limiter, cache *resource
 // ассеты. Вторым значением возвращает найденные на странице ссылки для дальнейшего
 // обхода. При сетевой ошибке или статусе >= 400 разбор HTML не выполняется.
 func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache, pageURL string, depth int) (Page, []string) {
-	dbg(pageURL, "PAGE fetch=%s depth=%d", pageURL, depth)
 	page := Page{
 		URL:          pageURL,
 		Depth:        depth,
 		DiscoveredAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
-	resp, err := doRequest(ctx, opts, lim, pageURL)
+	resp, err := doRequest(ctx, opts, lim, http.MethodGet, pageURL)
 	if err != nil {
 		page.Status = "error"
 		page.Error = err.Error()
@@ -230,32 +216,29 @@ func fetch(ctx context.Context, opts Options, lim *limiter, cache *resourceCache
 		return page, nil
 	}
 	links := extractLinks(root, base)
-	dbg(pageURL, "LINKS page=%s -> %v", pageURL, links)
-	page.BrokenLinks = checkLinks(ctx, opts, lim, cache, links)
+	page.BrokenLinks = checkLinks(ctx, opts, lim, links)
 	page.Assets = collectAssets(ctx, opts, lim, cache, extractAssets(root, base))
 
 	return page, links
 }
 
-// checkLinks запрашивает каждую ссылку через общий кэш и возвращает недоступные
+// checkLinks проверяет каждую ссылку HEAD-запросом и возвращает недоступные
 // (статус >= 400 либо сетевая ошибка). Ссылки, оборвавшиеся из-за отмены
 // контекста, битыми не считаются.
-func checkLinks(ctx context.Context, opts Options, lim *limiter, cache *resourceCache, links []string) []BrokenLink {
+func checkLinks(ctx context.Context, opts Options, lim *limiter, links []string) []BrokenLink {
 	broken := []BrokenLink{}
 	for _, link := range links {
 		if ctx.Err() != nil {
 			break
 		}
-		r := getResource(ctx, opts, lim, cache, link)
+		r := checkLink(ctx, opts, lim, link)
 		switch {
 		case r.err != nil:
 			if isCancelErr(r.err) {
 				continue
 			}
-			_, _ = fmt.Fprintf(os.Stderr, "BLDEBUG net link=%q err=%v\n", link, r.err)
 			broken = append(broken, BrokenLink{URL: link, Error: r.err.Error()})
 		case r.statusCode >= http.StatusBadRequest:
-			_, _ = fmt.Fprintf(os.Stderr, "BLDEBUG http link=%q status=%d\n", link, r.statusCode)
 			broken = append(broken, BrokenLink{
 				URL:        link,
 				StatusCode: r.statusCode,

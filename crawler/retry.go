@@ -10,12 +10,11 @@ import (
 // каждой попыткой, чтобы не генерировать бурст запросов к проблемному серверу.
 const retryBaseDelay = 100 * time.Millisecond
 
-// doRequest выполняет GET с повторами. Повтор делается только для временных
-// проблем: сетевой сбой или статус 429/5xx. После opts.Retries дополнительных
-// попыток возвращается результат последней из них. Отмена контекста немедленно
-// прекращает дальнейшие попытки.
-func doRequest(ctx context.Context, opts Options, lim *limiter, url string) (*http.Response, error) {
-	dbg(url, "REQ %s", url)
+// doRequest выполняет запрос method к url с повторами. Повтор делается только для
+// временных проблем: сетевой сбой или статус 429/5xx. После opts.Retries
+// дополнительных попыток возвращается результат последней из них. Отмена контекста
+// немедленно прекращает дальнейшие попытки.
+func doRequest(ctx context.Context, opts Options, lim *limiter, method, url string) (*http.Response, error) {
 	attempts := max(opts.Retries+1, 1)
 
 	var resp *http.Response
@@ -32,7 +31,7 @@ func doRequest(ctx context.Context, opts Options, lim *limiter, url string) (*ht
 		}
 
 		var req *http.Request
-		req, err = newRequest(ctx, opts, url)
+		req, err = newRequest(ctx, opts, method, url)
 		if err != nil {
 			return nil, err
 		}
@@ -55,9 +54,9 @@ func doRequest(ctx context.Context, opts Options, lim *limiter, url string) (*ht
 	return resp, err
 }
 
-// newRequest собирает GET-запрос с контекстом и заголовком User-Agent.
-func newRequest(ctx context.Context, opts Options, url string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+// newRequest собирает запрос method к url с контекстом и заголовком User-Agent.
+func newRequest(ctx context.Context, opts Options, method, url string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, err
 	}

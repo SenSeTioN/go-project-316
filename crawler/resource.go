@@ -73,10 +73,11 @@ func getResource(ctx context.Context, opts Options, lim *limiter, cache *resourc
 	return call.res
 }
 
-// loadResource выполняет запрос и измеряет размер ответа. Если запрос не удался,
-// возвращает fetchResult с одной лишь ошибкой.
+// loadResource качает ресурс через GET и измеряет его размер. Используется для
+// ассетов (нужен размер) и как фолбэк при проверке ссылок, если сервер не
+// поддерживает HEAD. При ошибке запроса возвращает fetchResult с одной лишь ошибкой.
 func loadResource(ctx context.Context, opts Options, lim *limiter, url string) fetchResult {
-	resp, err := doRequest(ctx, opts, lim, url)
+	resp, err := doRequest(ctx, opts, lim, http.MethodGet, url)
 	if err != nil {
 		return fetchResult{err: err}
 	}
@@ -86,8 +87,24 @@ func loadResource(ctx context.Context, opts Options, lim *limiter, url string) f
 	return fetchResult{statusCode: resp.StatusCode, sizeBytes: size, err: serr}
 }
 
-// measureSize берёт размер из заголовка Content-Length, а если его нет —
-// считает фактические байты тела. При ошибке чтения возвращает 0 и причину.
+// checkLink проверяет доступность ссылки лёгким HEAD-запросом, не качая тело. Если
+// сервер не поддерживает HEAD (405), повторяет запрос через GET. Размер для ссылок
+// не нужен — важен только статус.
+func checkLink(ctx context.Context, opts Options, lim *limiter, url string) fetchResult {
+	resp, err := doRequest(ctx, opts, lim, http.MethodHead, url)
+	if err != nil {
+		return fetchResult{err: err}
+	}
+	if resp.StatusCode == http.StatusMethodNotAllowed {
+		_ = resp.Body.Close()
+		return loadResource(ctx, opts, lim, url)
+	}
+	_ = resp.Body.Close()
+	return fetchResult{statusCode: resp.StatusCode}
+}
+
+// measureSize берёт размер из заголовка Content-Length, а если его нет — считает
+// фактические байты тела. При ошибке чтения возвращает 0 и причину.
 func measureSize(resp *http.Response) (int64, error) {
 	if resp.ContentLength >= 0 {
 		return resp.ContentLength, nil
