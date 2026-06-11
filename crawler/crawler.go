@@ -6,8 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -237,8 +239,10 @@ func checkLinks(ctx context.Context, opts Options, lim *limiter, cache *resource
 			if isCancelErr(r.err) {
 				continue
 			}
+			_, _ = fmt.Fprintf(os.Stderr, "BLDEBUG net link=%q err=%v\n", link, r.err)
 			broken = append(broken, BrokenLink{URL: link, Error: r.err.Error()})
 		case r.statusCode >= http.StatusBadRequest:
+			_, _ = fmt.Fprintf(os.Stderr, "BLDEBUG http link=%q status=%d\n", link, r.statusCode)
 			broken = append(broken, BrokenLink{
 				URL:        link,
 				StatusCode: r.statusCode,
